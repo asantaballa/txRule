@@ -68,8 +68,8 @@ Insert Into voting.#VotingField
 Values
   (1, 'Claim_AdminAmt'	, 'voting'	, 'Claim'	, 'AdminAmt'	, @GT_Number)
 , (2, 'Claim_SecAmt'	, 'voting'	, 'Claim'	, 'SecAmt'		, @GT_Number)
-, (2, 'Claim_PriAmt'	, 'voting'	, 'Claim'	, 'PriAmt'		, @GT_Number)
-, (2, 'Claim_SecAmt'	, 'voting'	, 'Claim'	, 'SecAmt'		, @GT_Number)
+, (3, 'Claim_PriAmt'	, 'voting'	, 'Claim'	, 'PriAmt'		, @GT_Number)
+, (4, 'Claim_SecAmt'	, 'voting'	, 'Claim'	, 'SecAmt'		, @GT_Number)
 
 --Select * From voting.#VotingField
 
@@ -107,6 +107,7 @@ Values
   (1, @ProjectId	, 'Rule for Plan class abc')
 , (2, @ProjectId	, 'Rule for Plan class bcd')
 , (3, @ProjectId	, 'Rule for Plan class cde')
+, (4, @ProjectId	, 'Rule for Plan class def')
 
 --Select * From  voting.#VotingRule
 
@@ -133,16 +134,15 @@ Select * Into #Work_VotingCondition From voting.#VotingCondition vf  Where 1 = 0
 Declare @Curr_VotingConditionId Int
 
 -- Cycle through Rules
---Select * From voting.#VotingRule
+
 Insert Into #Work_VotingRule Select *  From voting.#VotingRule vr 
---Select * From #Work_VotingRule
 
 Select @Curr_VotingRuleId = (Select Min(vr.VotingRuleId) From #Work_VotingRule vr)
 While @Curr_VotingRuleId Is Not Null
 Begin
-	If Exists (Select 1 From voting.#VotingCondition vc Where vc.VotingRuleId = @Curr_VotingRuleId)
+	If (Select Count(*) From voting.#VotingCondition vc Where vc.VotingRuleId = @Curr_VotingRuleId) > 0
 	Begin
-		Insert into @Sql (Stm) Select '        When 1 = 1 ' 
+		Insert into @Sql (Stm) Select '        When 1 = 1 '	
 
 		-- Cycle through Conditions
 
@@ -168,11 +168,5 @@ Begin
 	Select @Curr_VotingRuleId = (Select Min(vr.VotingRuleId) From #Work_VotingRule vr)
 End
 
---Insert into @Sql (Stm) 
---Select '  When 1 = 1 ' 
---Union All 
---Select 'Then ' 
---From			voting.#VotingRule vr
-
-Select Stm from @Sql Order By Seq
+Select seq, Stm from @Sql Order By Seq
 

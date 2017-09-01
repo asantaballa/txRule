@@ -28,6 +28,7 @@ Go
 Create Table voting.#VotingCondition
 ( VotingConditionId			Int				--Identity(1,1)
 , ProjectId					Int	Not Null
+, VotingRuleId				Int		
 , VotingFieldId				Int
 , NumValue1					Decimal(38, 8)
 , NumValue2					Decimal(38, 8)
@@ -75,6 +76,7 @@ Values
 Insert Into voting.#VotingCondition
 ( VotingConditionId
 , ProjectId
+, VotingRuleId
 , VotingFieldId
 , NumValue1
 , NumValue2
@@ -82,17 +84,17 @@ Insert Into voting.#VotingCondition
 , StrValue2
 )
 Values
-  ( 1, @ProjectId, 1,     0.00,   1000.00, Null, Null)
-, ( 2, @ProjectId, 1,  1000.01,  10000.00, Null, Null)
-, ( 3, @ProjectId, 1, 10000.01, 100000.00, Null, Null)
-, ( 4, @ProjectId, 2,     0.00,   1000.00, Null, Null)
-, ( 5, @ProjectId, 2,  1000.01,  10000.00, Null, Null)
-, ( 6, @ProjectId, 2, 10000.01, 100000.00, Null, Null)
-, ( 7, @ProjectId, 3,     0.00,   1000.00, Null, Null)
-, ( 8, @ProjectId, 3,  1000.01,  10000.00, Null, Null)
-, ( 9, @ProjectId, 3, 10000.01, 100000.00, Null, Null)
-, (10, @ProjectId, 4,     Null,      Null, 'AZ', 'AZ')
-, (11, @ProjectId, 4,     Null,      Null, 'FL', 'FL')
+  ( 1, @ProjectId, 1, 1,     0.00,   1000.00, Null, Null)
+, ( 2, @ProjectId, 1, 1,  1000.01,  10000.00, Null, Null)
+, ( 3, @ProjectId, 1, 1, 10000.01, 100000.00, Null, Null)
+, ( 4, @ProjectId, 3, 2,     0.00,   1000.00, Null, Null)
+, ( 5, @ProjectId, 3, 2,  1000.01,  10000.00, Null, Null)
+, ( 6, @ProjectId, 3, 2, 10000.01, 100000.00, Null, Null)
+, ( 7, @ProjectId, 3, 3,     0.00,   1000.00, Null, Null)
+, ( 8, @ProjectId, 2, 3,  1000.01,  10000.00, Null, Null)
+, ( 9, @ProjectId, 2, 3, 10000.01, 100000.00, Null, Null)
+, (10, @ProjectId, 2, 4,     Null,      Null, 'AZ', 'AZ')
+, (11, @ProjectId, 2, 4,     Null,      Null, 'FL', 'FL')
 
 --Select * From  voting.#VotingCondition
 
@@ -130,42 +132,47 @@ Drop Table #Work_VotingCondition
 Select * Into #Work_VotingCondition From voting.#VotingCondition vf  Where 1 = 0
 Declare @Curr_VotingConditionId Int
 
+-- Cycle through Rules
+--Select * From voting.#VotingRule
+Insert Into #Work_VotingRule Select *  From voting.#VotingRule vr 
+--Select * From #Work_VotingRule
+
 Select @Curr_VotingRuleId = (Select Min(vr.VotingRuleId) From #Work_VotingRule vr)
 While @Curr_VotingRuleId Is Not Null
 Begin
-	Insert into @Sql (Stm) Select '        When 1 = 1 ' 
-
-	Select @Curr_VotingConditionId = (Select Min(vr.VotingConditionId) From #Work_VotingCondition vr)
-	While @Curr_VotingConditionId Is Not Null
+	If Exists (Select 1 From voting.#VotingCondition vc Where vc.VotingRuleId = @Curr_VotingRuleId)
 	Begin
-		--Insert into @Sql (Stm) Select '        When 1 = 1 ' 
-		--Insert into @Sql (Stm) Select '        Then ' 
+		Insert into @Sql (Stm) Select '        When 1 = 1 ' 
 
-		Insert into @Sql (Stm) 
-		Select '  And ' + vf.VotingFieldDbFieldName + ' Between ' + Cast(vc.NumValue1 As Varchar(128)) + ' And ' + Cast(vc.NumValue2 As Varchar(128))
-		From			voting.#VotingCondition	vc 
-		Left Outer Join voting.#VotingField		vf	On vf.VotingFieldId = vc.VotingFieldId
-		Where vc.VotingConditionId = @Curr_VotingConditionId
+		-- Cycle through Conditions
 
-		Delete #Work_VotingCondition Where VotingConditionId = @Curr_VotingConditionId
+		Insert Into #Work_VotingCondition Select * From voting.#VotingCondition vc Where vc.VotingRuleId = @Curr_VotingRuleId
 		Select @Curr_VotingConditionId = (Select Min(vr.VotingConditionId) From #Work_VotingCondition vr)
+		While @Curr_VotingConditionId Is Not Null
+		Begin
+
+			Insert into @Sql (Stm) 
+			Select '          And ' + vf.VotingFieldDbFieldName + ' Between ' + IsNull(Cast(vc.NumValue1 As Varchar(128)), '???') + ' And ' + IsNull(Cast(vc.NumValue2 As Varchar(128)), '???')
+			From		voting.#VotingCondition	vc 
+			Inner Join	voting.#VotingField		vf	On vf.VotingFieldId = vc.VotingFieldId
+			Where vc.VotingConditionId = @Curr_VotingConditionId
+
+			Delete #Work_VotingCondition Where VotingConditionId = @Curr_VotingConditionId
+			Select @Curr_VotingConditionId = (Select Min(vr.VotingConditionId) From #Work_VotingCondition vr)
+		End
+
+		Insert into @Sql (Stm) Select '        Then ' 
 	End
 
-	Insert into @Sql (Stm) Select '        Then ' 
 	Delete #Work_VotingRule Where VotingRuleId = @Curr_VotingRuleId
 	Select @Curr_VotingRuleId = (Select Min(vr.VotingRuleId) From #Work_VotingRule vr)
 End
-
-
-
-
 
 --Insert into @Sql (Stm) 
 --Select '  When 1 = 1 ' 
 --Union All 
 --Select 'Then ' 
 --From			voting.#VotingRule vr
-
 
 Select Stm from @Sql Order By Seq
 

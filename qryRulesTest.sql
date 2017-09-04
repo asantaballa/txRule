@@ -135,7 +135,10 @@ Declare @Sql Table
 )
 
 Insert into @Sql (Stm) 
-			Select 'Update VotingTable'
+			Select 'Delete VotingTable'
+Union All	Select 'Where ProjectId = ' + Cast(@ProjectId As Varchar(128))
+Union All	Select ' '
+Union All	Select 'Update VotingTable'
 Union All	Select 'Set PlanClassId ='
 Union All	Select '    Case'
 
@@ -166,6 +169,7 @@ Begin
 		From #Work_VotingRule vr 
 		Where vr.VotingRuleId = @Curr_VotingRuleId
 
+		Insert into @Sql (Stm) Values('')
 		Insert Into @Sql (Stm) Select '        -- Rule: ' + @vr_VotingRuleName	
 		Insert Into @Sql (Stm) Select '        When 1 = 1 '	
 
@@ -195,5 +199,5 @@ Begin
 	Select @Curr_VotingRuleId = (Select Min(vr.VotingRuleId) From #Work_VotingRule vr)
 End
 
-Select seq, Stm from @Sql Order By Seq
+Select Stm from @Sql Order By Seq
 

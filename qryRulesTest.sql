@@ -19,6 +19,7 @@ Create Table voting.#VotingRule
 ( VotingRuleId				Int				--Identity(1,1)
 , ProjectId					Int	Not Null
 , VotingRuleName			Varchar(64)
+, VotingRuleResult				Varchar(Max)
 )
 Go
 
@@ -30,6 +31,7 @@ Create Table voting.#VotingCondition
 , ProjectId					Int	Not Null
 , VotingRuleId				Int		
 , VotingFieldId				Int
+, Operator					Varchar(16)
 , NumValue1					Decimal(38, 8)
 , NumValue2					Decimal(38, 8)
 , StrValue1					Varchar(MAX)
@@ -78,23 +80,24 @@ Insert Into voting.#VotingCondition
 , ProjectId
 , VotingRuleId
 , VotingFieldId
+, Operator
 , NumValue1
 , NumValue2
 , StrValue1
 , StrValue2
 )
 Values
-  ( 1, @ProjectId, 1, 1,     0.00,   1000.00, Null, Null)
-, ( 2, @ProjectId, 1, 1,  1000.01,  10000.00, Null, Null)
-, ( 3, @ProjectId, 1, 1, 10000.01, 100000.00, Null, Null)
-, ( 4, @ProjectId, 3, 2,     0.00,   1000.00, Null, Null)
-, ( 5, @ProjectId, 3, 2,  1000.01,  10000.00, Null, Null)
-, ( 6, @ProjectId, 3, 2, 10000.01, 100000.00, Null, Null)
-, ( 7, @ProjectId, 3, 3,     0.00,   1000.00, Null, Null)
-, ( 8, @ProjectId, 2, 3,  1000.01,  10000.00, Null, Null)
-, ( 9, @ProjectId, 2, 3, 10000.01, 100000.00, Null, Null)
-, (10, @ProjectId, 2, 4,     Null,      Null, 'AZ', 'AZ')
-, (11, @ProjectId, 2, 4,     Null,      Null, 'FL', 'FL')
+  ( 1, @ProjectId, 1, 1, 'Between',     0.00,   1000.00, Null, Null)
+, ( 2, @ProjectId, 1, 1, 'Between',  1000.01,  10000.00, Null, Null)
+, ( 3, @ProjectId, 1, 1, 'Between', 10000.01, 100000.00, Null, Null)
+, ( 4, @ProjectId, 3, 2, 'Between',     0.00,   1000.00, Null, Null)
+, ( 5, @ProjectId, 3, 2, 'Between',  1000.01,  10000.00, Null, Null)
+, ( 6, @ProjectId, 3, 2, 'Between', 10000.01, 100000.00, Null, Null)
+, ( 7, @ProjectId, 3, 3, 'Between',     0.00,   1000.00, Null, Null)
+, ( 8, @ProjectId, 2, 3, 'Between',  1000.01,  10000.00, Null, Null)
+, ( 9, @ProjectId, 2, 3, 'Between', 10000.01, 100000.00, Null, Null)
+, (10, @ProjectId, 2, 4, 'Between',     Null,      Null, 'AZ', 'AZ')
+, (11, @ProjectId, 2, 4, 'Between',     Null,      Null, 'FL', 'FL')
 
 --Select * From  voting.#VotingCondition
 
@@ -102,17 +105,28 @@ Insert Into voting.#VotingRule
 ( VotingRuleId
 , ProjectId
 , VotingRuleName
+, VotingRuleResult
 )
 Values
-  (1, @ProjectId	, 'Rule for Plan class abc')
-, (2, @ProjectId	, 'Rule for Plan class bcd')
-, (3, @ProjectId	, 'Rule for Plan class cde')
-, (4, @ProjectId	, 'Rule for Plan class def')
+  (1, @ProjectId	, 'Rule for Plan class abc', '40')
+, (2, @ProjectId	, 'Rule for Plan class bcd', '30')
+, (3, @ProjectId	, 'Rule for Plan class cde', '20')
+, (4, @ProjectId	, 'Rule for Plan class def', '10')
 
 --Select * From  voting.#VotingRule
 
 -- -- -- -- --
 
+
+Declare @Alias Table
+(
+  TableName	Varchar(128)
+, Alias		Varchar(128)
+)
+
+Insert into @Alias (TableName, Alias) Values
+  ('Claim', 'clm')
+, ('Voting', 'vote')
 
 Declare @Sql Table
 (
@@ -135,6 +149,10 @@ Declare @Curr_VotingConditionId Int
 
 -- Cycle through Rules
 
+Declare
+  @vr_VotingRuleName	Varchar(64)
+, @vr_VotingRuleResult	Varchar(Max)
+
 Insert Into #Work_VotingRule Select *  From voting.#VotingRule vr 
 
 Select @Curr_VotingRuleId = (Select Min(vr.VotingRuleId) From #Work_VotingRule vr)
@@ -142,7 +160,14 @@ While @Curr_VotingRuleId Is Not Null
 Begin
 	If (Select Count(*) From voting.#VotingCondition vc Where vc.VotingRuleId = @Curr_VotingRuleId) > 0
 	Begin
-		Insert into @Sql (Stm) Select '        When 1 = 1 '	
+		Select
+		  @vr_VotingRuleName = vr.VotingRuleName
+		, @vr_VotingRuleResult = vr.VotingRuleResult
+		From #Work_VotingRule vr 
+		Where vr.VotingRuleId = @Curr_VotingRuleId
+
+		Insert Into @Sql (Stm) Select '        -- Rule: ' + @vr_VotingRuleName	
+		Insert Into @Sql (Stm) Select '        When 1 = 1 '	
 
 		-- Cycle through Conditions
 
@@ -152,7 +177,9 @@ Begin
 		Begin
 
 			Insert into @Sql (Stm) 
-			Select '          And ' + vf.VotingFieldDbFieldName + ' Between ' + IsNull(Cast(vc.NumValue1 As Varchar(128)), '???') + ' And ' + IsNull(Cast(vc.NumValue2 As Varchar(128)), '???')
+			Select '          And ' 
+					+ IsNull((Select Alias From @Alias als Where als.TableName = vf.VotingFieldDbTableName), vf.VotingFieldDbTableName)
+					+ '.' + vf.VotingFieldDbFieldName + ' ' + vc.Operator + ' ' + IsNull(Cast(vc.NumValue1 As Varchar(128)), '???') + ' And ' + IsNull(Cast(vc.NumValue2 As Varchar(128)), '???')
 			From		voting.#VotingCondition	vc 
 			Inner Join	voting.#VotingField		vf	On vf.VotingFieldId = vc.VotingFieldId
 			Where vc.VotingConditionId = @Curr_VotingConditionId
@@ -161,7 +188,7 @@ Begin
 			Select @Curr_VotingConditionId = (Select Min(vr.VotingConditionId) From #Work_VotingCondition vr)
 		End
 
-		Insert into @Sql (Stm) Select '        Then ' 
+		Insert into @Sql (Stm) Select '        Then ' + @vr_VotingRuleResult
 	End
 
 	Delete #Work_VotingRule Where VotingRuleId = @Curr_VotingRuleId

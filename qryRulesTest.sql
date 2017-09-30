@@ -1,51 +1,52 @@
-Drop Table voting.#VotingField
+Drop Table rules.#Field
 Go
 
-Create Table voting.#VotingField
-( VotingFieldId				Int				--Identity(1,1)
+Create Table rules.#Field
+( FieldId				Int				--Identity(1,1)
 --, ProjectId					Int	Not Null
-, VotingFieldCode			Varchar(64)
-, VotingFieldDbSchemaName	Varchar(128)
-, VotingFieldDbTableName	Varchar(128)
-, VotingFieldDbFieldName	Varchar(128)
-, VotingFieldGenericType	Int
+, FieldCode			Varchar(64)
+, FieldDbSchemaName	Varchar(128)
+, FieldDbTableName	Varchar(128)
+, FieldDbFieldName	Varchar(128)
+, FieldGenericType	Int
 )
 Go
 
-Drop Table voting.#VotingRule
+Drop Table rules.#RuleSet
 Go
 
-Create Table voting.#VotingRule
-( VotingRuleId				Int				--Identity(1,1)
-, ProjectId					Int	Not Null
-, VotingRuleName			Varchar(64)
-, VotingRuleResult				Varchar(Max)
+Create Table rules.#RuleSet
+( RuleSetId			Int				--Identity(1,1)
+, ProjectId			Int	Not Null
+, RuleSetName			Varchar(64)
+, RuleSetResult		Varchar(Max)
 )
 Go
 
-Drop Table voting.#VotingCondition
+Drop Table rules.#Rule
 Go
 
-Create Table voting.#VotingCondition
-( VotingConditionId			Int				--Identity(1,1)
-, ProjectId					Int	Not Null
-, VotingRuleId				Int		
-, VotingFieldId				Int
-, Operator					Varchar(16)
-, NumValue1					Decimal(38, 8)
-, NumValue2					Decimal(38, 8)
-, StrValue1					Varchar(MAX)
-, StrValue2					Varchar(MAX)
+Create Table rules.#Rule
+( ConditionId		Int				--Identity(1,1)
+, ProjectId			Int	Not Null
+, RuleSetId			Int		
+, FieldId			Int
+, Operator			Varchar(16)
+, NumValue1			Decimal(38, 8)
+, NumValue2			Decimal(38, 8)
+, StrValue1			Varchar(MAX)
+, StrValue2			
+Varchar(MAX)
 )
 Go
 
-Drop Table voting.#VotingPlanClassRuleRelation
+Drop Table rules.#PlanClassRuleRelation
 Go
 
-Create Table voting.#VotingPlanClassRuleRelation
-( VotingPlanClassRuleRelationId	Int	Identity(1,1)
-, VotingPlanClassId				Int	Not Null
-, VotingRuleId					Int	Not Null
+Create Table .#PlanClassRuleRelation
+( PlanClassRuleRelationId	Int	Identity(1,1)
+, PlanClassId				Int	Not Null
+, RuleSetId					Int	Not Null
 )
 Go
 
@@ -59,27 +60,27 @@ Declare
 Declare 
   @ProjectId	Int	= 1234
 
-Insert Into voting.#VotingField
-( VotingFieldId
-, VotingFieldCode
-, VotingFieldDbSchemaName
-, VotingFieldDbTableName
-, VotingFieldDbFieldName
-, VotingFieldGenericType
+Insert Into rules.#Field
+( FieldId
+, FieldCode
+, FieldDbSchemaName
+, FieldDbTableName
+, FieldDbFieldName
+, FieldGenericType
 )
 Values
-  (1, 'Claim_AdminAmt'	, 'voting'	, 'Claim'	, 'AdminAmt'	, @GT_Number)
-, (2, 'Claim_SecAmt'	, 'voting'	, 'Claim'	, 'SecAmt'		, @GT_Number)
-, (3, 'Claim_PriAmt'	, 'voting'	, 'Claim'	, 'PriAmt'		, @GT_Number)
-, (4, 'Claim_SecAmt'	, 'voting'	, 'Claim'	, 'SecAmt'		, @GT_Number)
+  (1, 'Claim_AdminAmt'	, ''	, 'Claim'	, 'AdminAmt'	, @GT_Number)
+, (2, 'Claim_SecAmt'	, ''	, 'Claim'	, 'SecAmt'		, @GT_Number)
+, (3, 'Claim_PriAmt'	, ''	, 'Claim'	, 'PriAmt'		, @GT_Number)
+, (4, 'Claim_SecAmt'	, ''	, 'Claim'	, 'SecAmt'		, @GT_Number)
 
---Select * From voting.#VotingField
+--Select * From rules.#Field
 
-Insert Into voting.#VotingCondition
-( VotingConditionId
+Insert Into rules.#Rule
+( ConditionId
 , ProjectId
-, VotingRuleId
-, VotingFieldId
+, RuleSetId
+, FieldId
 , Operator
 , NumValue1
 , NumValue2
@@ -99,13 +100,13 @@ Values
 , (10, @ProjectId, 2, 4, 'Between',     Null,      Null, 'AZ', 'AZ')
 , (11, @ProjectId, 2, 4, 'Between',     Null,      Null, 'FL', 'FL')
 
---Select * From  voting.#VotingCondition
+--Select * From  rules.#Rule
 
-Insert Into voting.#VotingRule
-( VotingRuleId
+Insert Into rules.#RuleSet
+( RuleSetId
 , ProjectId
-, VotingRuleName
-, VotingRuleResult
+, RuleSetName
+, RuleSetResult
 )
 Values
   (1, @ProjectId	, 'Rule for Plan class abc', '40')
@@ -113,10 +114,9 @@ Values
 , (3, @ProjectId	, 'Rule for Plan class cde', '20')
 , (4, @ProjectId	, 'Rule for Plan class def', '10')
 
---Select * From  voting.#VotingRule
+--Select * From  rules.#RuleSet
 
 -- -- -- -- --
-
 
 Declare @Alias Table
 (
@@ -126,7 +126,7 @@ Declare @Alias Table
 
 Insert into @Alias (TableName, Alias) Values
   ('Claim', 'clm')
-, ('Voting', 'vote')
+, ('', 'vote')
 
 Declare @Sql Table
 (
@@ -135,68 +135,68 @@ Declare @Sql Table
 )
 
 Insert into @Sql (Stm) 
-			Select 'Delete VotingTable'
+			Select 'Delete Table'
 Union All	Select 'Where ProjectId = ' + Cast(@ProjectId As Varchar(128))
 Union All	Select ' '
-Union All	Select 'Update VotingTable'
+Union All	Select 'Update Table'
 Union All	Select 'Set PlanClassId ='
 Union All	Select '    Case'
 
-Drop Table #Work_VotingRule
-Select * Into #Work_VotingRule From voting.#VotingRule vr Where 1 = 0
-Declare @Curr_VotingRuleId Int
+Drop Table #Work_RuleSet
+Select * Into #Work_RuleSet From rules.#RuleSet vr Where 1 = 0
+Declare @Curr_RuleSetId Int
 
-Drop Table #Work_VotingCondition
-Select * Into #Work_VotingCondition From voting.#VotingCondition vf  Where 1 = 0
-Declare @Curr_VotingConditionId Int
+Drop Table #Work_Rule
+Select * Into #Work_Rule From rules.#Rule vf  Where 1 = 0
+Declare @Curr_ConditionId Int
 
--- Cycle through Rules
+-- Cycle through Rulesets
 
 Declare
-  @vr_VotingRuleName	Varchar(64)
-, @vr_VotingRuleResult	Varchar(Max)
+  @vr_RuleSetName	Varchar(64)
+, @vr_RuleSetResult	Varchar(Max)
 
-Insert Into #Work_VotingRule Select *  From voting.#VotingRule vr 
+Insert Into #Work_RuleSet Select *  From rules.#RuleSet vr 
 
-Select @Curr_VotingRuleId = (Select Min(vr.VotingRuleId) From #Work_VotingRule vr)
-While @Curr_VotingRuleId Is Not Null
+Select @Curr_RuleSetId = (Select Min(vr.RuleSetId) From #Work_RuleSet vr)
+While @Curr_RuleSetId Is Not Null
 Begin
-	If (Select Count(*) From voting.#VotingCondition vc Where vc.VotingRuleId = @Curr_VotingRuleId) > 0
+	If (Select Count(*) From rules.#RuleSet vc Where vc.RuleSetId = @Curr_RuleSetId) > 0
 	Begin
 		Select
-		  @vr_VotingRuleName = vr.VotingRuleName
-		, @vr_VotingRuleResult = vr.VotingRuleResult
-		From #Work_VotingRule vr 
-		Where vr.VotingRuleId = @Curr_VotingRuleId
+		  @vr_RuleSetName = vr.RuleSetName
+		, @vr_RuleSetResult = vr.RuleSetResult
+		From #Work_RuleSet vr 
+		Where vr.RuleSetId = @Curr_RuleSetId
 
 		Insert into @Sql (Stm) Values('')
-		Insert Into @Sql (Stm) Select '        -- Rule: ' + @vr_VotingRuleName	
+		Insert Into @Sql (Stm) Select '        -- Rule: ' + @vr_RuleSetName	
 		Insert Into @Sql (Stm) Select '        When 1 = 1 '	
 
 		-- Cycle through Conditions
 
-		Insert Into #Work_VotingCondition Select * From voting.#VotingCondition vc Where vc.VotingRuleId = @Curr_VotingRuleId
-		Select @Curr_VotingConditionId = (Select Min(vr.VotingConditionId) From #Work_VotingCondition vr)
-		While @Curr_VotingConditionId Is Not Null
+		Insert Into #Work_Rule Select * From rules.#Rule vc Where vc.RuleSetId = @Curr_RuleSetId
+		Select @Curr_ConditionId = (Select Min(vr.ConditionId) From #Work_Rule vr)
+		While @Curr_ConditionId Is Not Null
 		Begin
 
 			Insert into @Sql (Stm) 
 			Select '          And ' 
-					+ IsNull((Select Alias From @Alias als Where als.TableName = vf.VotingFieldDbTableName), vf.VotingFieldDbTableName)
-					+ '.' + vf.VotingFieldDbFieldName + ' ' + vc.Operator + ' ' + IsNull(Cast(vc.NumValue1 As Varchar(128)), '???') + ' And ' + IsNull(Cast(vc.NumValue2 As Varchar(128)), '???')
-			From		voting.#VotingCondition	vc 
-			Inner Join	voting.#VotingField		vf	On vf.VotingFieldId = vc.VotingFieldId
-			Where vc.VotingConditionId = @Curr_VotingConditionId
+					+ IsNull((Select Alias From @Alias als Where als.TableName = vf.FieldDbTableName), vf.FieldDbTableName)
+					+ '.' + vf.FieldDbFieldName + ' ' + vc.Operator + ' ' + IsNull(Cast(vc.NumValue1 As Varchar(128)), '???') + ' And ' + IsNull(Cast(vc.NumValue2 As Varchar(128)), '???')
+			From		rules.#Rule	vc 
+			Inner Join	rules.#Field		vf	On vf.FieldId = vc.FieldId
+			Where vc.ConditionId = @Curr_ConditionId
 
-			Delete #Work_VotingCondition Where VotingConditionId = @Curr_VotingConditionId
-			Select @Curr_VotingConditionId = (Select Min(vr.VotingConditionId) From #Work_VotingCondition vr)
+			Delete #Work_Rule Where ConditionId = @Curr_ConditionId
+			Select @Curr_ConditionId = (Select Min(vr.ConditionId) From #Work_Rule vr)
 		End
 
-		Insert into @Sql (Stm) Select '        Then ' + @vr_VotingRuleResult
+		Insert into @Sql (Stm) Select '        Then ' + @vr_RuleSetResult
 	End
 
-	Delete #Work_VotingRule Where VotingRuleId = @Curr_VotingRuleId
-	Select @Curr_VotingRuleId = (Select Min(vr.VotingRuleId) From #Work_VotingRule vr)
+	Delete #Work_RuleSet Where RuleSetId = @Curr_RuleSetId
+	Select @Curr_RuleSetId = (Select Min(vr.RuleSetId) From #Work_RuleSet vr)
 End
 
 Select Stm from @Sql Order By Seq
